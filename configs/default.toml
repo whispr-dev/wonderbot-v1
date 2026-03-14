@@ -1,0 +1,40 @@
+[agent]
+name = "wonderbot"
+response_style = "warm, concise, reflective, technical when useful"
+reaction_threshold = 0.18
+spontaneous_interval = 5
+max_context_memories = 6
+
+[codec]
+dim = 192
+ngram = 3
+window_chars = 16
+min_segment_chars = 4
+cosine_drop = 0.14
+lowercase = false
+nfkc = true
+
+[memory]
+path = "state/memory.json"
+max_active_items = 2000
+protect_identity = true
+importance_threshold = 0.36
+min_novelty = 0.08
+
+[ganglion]
+height = 8
+width = 8
+channels = 8
+bleed = 0.03
+
+[resonance]
+sigma = 0.5
+tau = 14.134725
+alpha = 1.2
+prime_count = 32
+
+[backend]
+kind = "echo"
+hf_model = "distilgpt2"
+max_new_tokens = 120
+temperature = 0.8

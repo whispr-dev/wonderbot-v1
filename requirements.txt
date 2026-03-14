@@ -1,0 +1,5 @@
+# Base runtime intentionally has no mandatory third-party dependencies.
+# Install extras as needed:
+#   pip install -e .[dev]
+#   pip install -e .[hf]
+#   pip install -e .[vision,audio]

@@ -1,0 +1,39 @@
+{
+  "recommended_base": "code/resonant-llm",
+  "tokenizer_candidate": "code/resonant-llm/code/fren-agent/src/fren_agent/resonant_tokenizer.py",
+  "resonance_core": [
+    "code/riemann-resonance-llm/src/riemann_resonance_llm/model_b.py",
+    "code/riemann-resonance-llm/src/riemann_resonance_llm/modules/resonance_collapse_b.py"
+  ],
+  "ganglion_sources": [
+    "code/woflchess/engine/ca_bus.py",
+    "code/woflchess/engine/ganglion.py",
+    "code/wofl-brain/petey-convo.md",
+    "code/claude's-neural-chess/neural_chess/ganglion.rs"
+  ],
+  "archive_first": [
+    "code/multimodal-agent/bakup_zips",
+    "code/multimodal-agent/grok's_take",
+    "code/multimodal-agent/fren-agent.zip",
+    "code/multimodal-agent/multimodal_agent_fixed.zip"
+  ],
+  "known_issues": {
+    "resonant-llm": [
+      "resonant tokenizer instantiated but never fit/load called",
+      "still uses HuggingFace tokenizer internally",
+      "agent.py initializes memory twice and drops governance on second assignment",
+      "main.py forces Coqui regardless of config"
+    ],
+    "riemann-resonance-llm": [
+      "empty tokenizer.model",
+      "inference_b.py still uses standard HF tokenizer"
+    ],
+    "woflchess": [
+      "engine/agent.py imports .utils but file is named utiils.py"
+    ],
+    "multimodal-agent": [
+      "main.py syntax error",
+      "generated fragments contain invalid syntax / pasted chat text"
+    ]
+  }
+}
