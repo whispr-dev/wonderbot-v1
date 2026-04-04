@@ -1,5 +1,4 @@
-# Base runtime intentionally has no mandatory third-party dependencies.
-# Install extras as needed:
-#   pip install -e .[dev]
-#   pip install -e .[hf]
-#   pip install -e .[vision,audio]
+# Base install is dependency-light.
+# For tests: pip install -e .[dev]
+# For live sensors only: pip install -e .[live]
+# For phase 4 live sensing with captioning + STT: pip install -e .[live-full]

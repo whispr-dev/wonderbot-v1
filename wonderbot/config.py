@@ -44,10 +44,17 @@ class ResonanceConfig:
 
 @dataclass(slots=True)
 class BackendConfig:
-    kind: str = "echo"
+    kind: str = "lvtc"
     hf_model: str = "distilgpt2"
     max_new_tokens: int = 120
     temperature: float = 0.8
+    delta_scale: float = 0.24
+    creative_depth: int = 1
+    anchor_pullback: float = 0.72
+    novelty_threshold: float = 0.10
+    drift_threshold: float = 0.58
+    repetition_threshold: float = 0.34
+    latency_budget_ms: int = 30
 
 
 @dataclass(slots=True)
@@ -60,6 +67,57 @@ class AgentConfig:
 
 
 @dataclass(slots=True)
+class LiveConfig:
+    enabled: bool = False
+    poll_interval_ms: int = 350
+    sensor_memory_threshold: float = 0.10
+    sensor_reaction_threshold: float = 0.18
+    sensor_reaction_gain: float = 1.15
+
+
+@dataclass(slots=True)
+class CameraConfig:
+    enabled: bool = False
+    index: int = 0
+    width: int = 320
+    height: int = 240
+    motion_threshold: float = 0.08
+    brightness_threshold: float = 0.05
+    min_salience: float = 0.12
+
+
+@dataclass(slots=True)
+class MicrophoneConfig:
+    enabled: bool = False
+    sample_rate: int = 16000
+    channels: int = 1
+    window_seconds: float = 0.35
+    rms_threshold: float = 0.03
+    peak_threshold: float = 0.12
+    min_salience: float = 0.10
+
+
+@dataclass(slots=True)
+class CaptionConfig:
+    enabled: bool = False
+    model: str = "Salesforce/blip-image-captioning-base"
+    max_new_tokens: int = 24
+    interval_seconds: float = 3.0
+    salience_threshold: float = 0.22
+    min_chars: int = 12
+
+
+@dataclass(slots=True)
+class SpeechConfig:
+    enabled: bool = False
+    model: str = "openai/whisper-tiny.en"
+    language: str = "en"
+    salience_threshold: float = 0.22
+    min_chars: int = 4
+    cooldown_seconds: float = 0.75
+
+
+@dataclass(slots=True)
 class WonderBotConfig:
     agent: AgentConfig
     codec: CodecConfig
@@ -67,6 +125,11 @@ class WonderBotConfig:
     ganglion: GanglionConfig
     resonance: ResonanceConfig
     backend: BackendConfig
+    live: LiveConfig
+    camera: CameraConfig
+    microphone: MicrophoneConfig
+    caption: CaptionConfig
+    speech: SpeechConfig
 
     @classmethod
     def load(cls, path: str | Path) -> "WonderBotConfig":
@@ -78,7 +141,13 @@ class WonderBotConfig:
             ganglion=GanglionConfig(**data.get("ganglion", {})),
             resonance=ResonanceConfig(**data.get("resonance", {})),
             backend=BackendConfig(**data.get("backend", {})),
+            live=LiveConfig(**data.get("live", {})),
+            camera=CameraConfig(**data.get("camera", {})),
+            microphone=MicrophoneConfig(**data.get("microphone", {})),
+            caption=CaptionConfig(**data.get("caption", {})),
+            speech=SpeechConfig(**data.get("speech", {})),
         )
+
 
 
 def _read_toml(path: str | Path) -> Dict[str, Any]:

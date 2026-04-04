@@ -34,7 +34,55 @@ alpha = 1.2
 prime_count = 32
 
 [backend]
-kind = "echo"
+kind = "lvtc"
 hf_model = "distilgpt2"
 max_new_tokens = 120
 temperature = 0.8
+delta_scale = 0.24
+creative_depth = 1
+anchor_pullback = 0.72
+novelty_threshold = 0.10
+drift_threshold = 0.58
+repetition_threshold = 0.34
+latency_budget_ms = 30
+
+[live]
+enabled = false
+poll_interval_ms = 350
+sensor_memory_threshold = 0.10
+sensor_reaction_threshold = 0.18
+sensor_reaction_gain = 1.15
+
+[camera]
+enabled = false
+index = 0
+width = 320
+height = 240
+motion_threshold = 0.08
+brightness_threshold = 0.05
+min_salience = 0.12
+
+[microphone]
+enabled = false
+sample_rate = 16000
+channels = 1
+window_seconds = 0.35
+rms_threshold = 0.03
+peak_threshold = 0.12
+min_salience = 0.10
+
+[caption]
+enabled = false
+model = "Salesforce/blip-image-captioning-base"
+max_new_tokens = 24
+interval_seconds = 3.0
+salience_threshold = 0.22
+min_chars = 12
+
+[speech]
+enabled = false
+model = "openai/whisper-tiny.en"
+language = "en"
+salience_threshold = 0.22
+min_chars = 4
+cooldown_seconds = 0.75

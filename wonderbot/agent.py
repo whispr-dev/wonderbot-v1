@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, asdict
-from pathlib import Path
-import json
 from typing import Dict, List, Optional
 
 from .config import WonderBotConfig
 from .event_codec import EventCodec, SegmentEvent
 from .ganglion import Ganglion
-from .llm_backends import BackendResult, create_backend
-from .memory import MemoryItem, MemoryStore
+from .llm_backends import create_backend
+from .memory import MemoryStore
 from .resonance import ResonanceField
+from .sensors import SensorHub, SensorObservation, build_sensor_hub
 
 
 @dataclass(slots=True)
@@ -22,21 +21,18 @@ class AgentTurn:
     recalled: List[str]
     spontaneous: bool
     backend: str
+    source: str = "user"
+    salience: float = 0.0
 
     def to_dict(self) -> Dict[str, object]:
         return asdict(self)
-
-
-@dataclass(slots=True)
-class WonderBotConfigBundle:
-    raw: WonderBotConfig
 
 
 WonderBotConfigAlias = WonderBotConfig
 
 
 class WonderBot:
-    def __init__(self, config: WonderBotConfig) -> None:
+    def __init__(self, config: WonderBotConfig, sensor_hub: SensorHub | None = None) -> None:
         self.config = config
         self.codec = EventCodec(
             dim=config.codec.dim,
@@ -67,51 +63,38 @@ class WonderBot:
             alpha=config.resonance.alpha,
             prime_count=config.resonance.prime_count,
         )
-        self.backend = create_backend(
-            kind=config.backend.kind,
-            hf_model=config.backend.hf_model,
-            max_new_tokens=config.backend.max_new_tokens,
-            temperature=config.backend.temperature,
-        )
+        self.backend = create_backend(config=config.backend, codec=self.codec)
+        self.sensor_hub = sensor_hub if sensor_hub is not None else build_sensor_hub(config)
         self.last_turn: Optional[AgentTurn] = None
         self._idle_counter = 0
 
     def observe(self, stimulus: str, source: str = "user", explicit: bool = True) -> AgentTurn:
-        stimulus = stimulus.strip()
-        events = self.codec.analyze_text(stimulus)
-        if stimulus:
-            self.memory.add(stimulus, source=source, metadata={"explicit": explicit})
-        resonance_value = self._ingest_events(events)
-        recalled_items = self.memory.search(stimulus, k=self.config.agent.max_context_memories) if stimulus else self.memory.top_memories(self.config.agent.max_context_memories)
-        recalled = [item.text for item in recalled_items]
-        should_answer = self.resonance.should_react(resonance_value, self.config.agent.reaction_threshold, explicit=explicit)
-        response = None
-        backend_name = self.backend.name if hasattr(self.backend, "name") else type(self.backend).__name__
-        if should_answer:
-            result = self.backend.generate(stimulus=stimulus, memories=recalled_items, style=self.config.agent.response_style, spontaneous=False)
-            response = result.text
-            backend_name = result.backend_name
-            if response.strip():
-                response = response.strip()
-                self.memory.add(response, source="assistant", metadata={"stimulus": stimulus})
-        self.ganglion.tick()
-        self._idle_counter = 0
-        turn = AgentTurn(
-            stimulus=stimulus,
-            response=response,
-            resonance=round(resonance_value, 6),
-            tick=self.ganglion.t,
-            recalled=recalled,
-            spontaneous=False,
-            backend=backend_name,
+        return self._observe_common(stimulus=stimulus, source=source, explicit=explicit, source_salience=0.0, metadata=None)
+
+    def observe_sensor(self, observation: SensorObservation) -> AgentTurn:
+        return self._observe_common(
+            stimulus=observation.text,
+            source=observation.source,
+            explicit=False,
+            source_salience=observation.salience,
+            metadata={**observation.metadata, "sensor": True, "salience": observation.salience},
         )
-        self.last_turn = turn
-        return turn
+
+    def poll_sensors(self) -> List[AgentTurn]:
+        turns: List[AgentTurn] = []
+        for observation in self.sensor_hub.poll():
+            if observation.salience < self.config.live.sensor_memory_threshold:
+                continue
+            turn = self.observe_sensor(observation)
+            turns.append(turn)
+        return turns
 
     def idle_tick(self, count: int = 1) -> List[AgentTurn]:
         turns: List[AgentTurn] = []
         for _ in range(max(1, count)):
             self.ganglion.tick()
+            sensor_turns = self.poll_sensors() if self.config.live.enabled else []
+            turns.extend(sensor_turns)
             self._idle_counter += 1
             if self._idle_counter >= self.config.agent.spontaneous_interval:
                 memories = self.memory.top_memories(self.config.agent.max_context_memories)
@@ -127,6 +110,8 @@ class WonderBot:
                         recalled=[memory.text for memory in memories],
                         spontaneous=True,
                         backend=result.backend_name,
+                        source="assistant",
+                        salience=0.0,
                     )
                     turns.append(turn)
                     self.last_turn = turn
@@ -136,13 +121,73 @@ class WonderBot:
     def save(self) -> None:
         self.memory.save()
 
+    def close(self) -> None:
+        self.sensor_hub.close()
+        self.save()
+
     def state_summary(self) -> Dict[str, object]:
         return {
             "tick": self.ganglion.t,
             "ganglion": self.ganglion.state_summary().to_dict(),
             "memory": self.memory.stats(),
+            "sensors": [asdict(status) for status in self.sensor_hub.status()],
             "last_turn": self.last_turn.to_dict() if self.last_turn else None,
         }
+
+    def _observe_common(
+        self,
+        stimulus: str,
+        source: str,
+        explicit: bool,
+        source_salience: float,
+        metadata: Optional[Dict[str, object]],
+    ) -> AgentTurn:
+        stimulus = stimulus.strip()
+        events = self.codec.analyze_text(stimulus)
+        if stimulus:
+            self.memory.add(stimulus, source=source, metadata={"explicit": explicit, **(metadata or {})})
+        resonance_value = self._ingest_events(events)
+        drive = max(resonance_value, min(1.0, source_salience * self.config.live.sensor_reaction_gain))
+        recalled_items = (
+            self.memory.search(stimulus, k=self.config.agent.max_context_memories)
+            if stimulus
+            else self.memory.top_memories(self.config.agent.max_context_memories)
+        )
+        recalled = [item.text for item in recalled_items]
+        should_answer = explicit or drive >= self.config.live.sensor_reaction_threshold or self.resonance.should_react(
+            drive,
+            self.config.agent.reaction_threshold,
+            explicit=explicit,
+        )
+        response = None
+        backend_name = self.backend.name if hasattr(self.backend, "name") else type(self.backend).__name__
+        if should_answer:
+            result = self.backend.generate(
+                stimulus=stimulus,
+                memories=recalled_items,
+                style=self.config.agent.response_style,
+                spontaneous=False,
+            )
+            response = result.text.strip()
+            backend_name = result.backend_name
+            if response:
+                self.memory.add(response, source="assistant", metadata={"stimulus": stimulus, "source": source})
+        if source == "user":
+            self.ganglion.tick()
+            self._idle_counter = 0
+        turn = AgentTurn(
+            stimulus=stimulus,
+            response=response,
+            resonance=round(drive, 6),
+            tick=self.ganglion.t,
+            recalled=recalled,
+            spontaneous=False,
+            backend=backend_name,
+            source=source,
+            salience=round(source_salience, 6),
+        )
+        self.last_turn = turn
+        return turn
 
     def _ingest_events(self, events: List[SegmentEvent]) -> float:
         if not events:

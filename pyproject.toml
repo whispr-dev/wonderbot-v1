@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wonderbot"
-version = "0.1.0"
-description = "Consolidated continuous agent base with event-coded memory, ganglion clock, and swappable LLM backends."
+version = "0.4.0"
+description = "Consolidated continuous agent base with event-coded memory, live multimodal sensing, and swappable LLM backends."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -18,11 +18,34 @@ hf = [
   "torch>=2.2.0"
 ]
 vision = [
-  "opencv-python>=4.10.0"
+  "opencv-python>=4.10.0",
+  "numpy>=1.26.0"
 ]
 audio = [
   "sounddevice>=0.4.7",
-  "soundfile>=0.12.1"
+  "soundfile>=0.12.1",
+  "numpy>=1.26.0"
+]
+multimodal = [
+  "transformers>=4.40.0",
+  "torch>=2.2.0",
+  "pillow>=10.0.0",
+  "numpy>=1.26.0"
+]
+live = [
+  "opencv-python>=4.10.0",
+  "sounddevice>=0.4.7",
+  "soundfile>=0.12.1",
+  "numpy>=1.26.0"
+]
+live-full = [
+  "opencv-python>=4.10.0",
+  "sounddevice>=0.4.7",
+  "soundfile>=0.12.1",
+  "numpy>=1.26.0",
+  "transformers>=4.40.0",
+  "torch>=2.2.0",
+  "pillow>=10.0.0"
 ]
 dev = [
   "pytest>=8.0.0"

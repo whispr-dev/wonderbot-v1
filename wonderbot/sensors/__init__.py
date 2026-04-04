@@ -1,5 +1,9 @@
-"""Optional sensor adapters live here.
+from .base import SensorObservation, SensorStatus
+from .hub import SensorHub, build_sensor_hub
 
-The initial consolidation base keeps real camera/microphone capture optional.
-That is intentional: the repo boots cleanly without heavy external stacks.
-"""
+__all__ = [
+    "SensorHub",
+    "SensorObservation",
+    "SensorStatus",
+    "build_sensor_hub",
+]
